@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Notebook</h1>
+<div class="grid lg:grid-cols-2 gap-4">
+<section class="card p-5"><h2 class="section-title">New Note</h2><form method="post" class="space-y-3 mt-3"><input class="input" name="title" placeholder="Title"><textarea class="input min-h-32" name="body" placeholder="Your note"></textarea><button class="btn-primary">Save Note</button></form></section>
+<section class="card p-5"><h2 class="section-title">Unresolved Mistakes</h2>{% for mistake in unresolved %}<form method="post" action="{{ url_for('main.resolve_mistake', mistake_id=mistake.id) }}" class="row mt-2"><span>{{ mistake.mistake_text }} → {{ mistake.correct_answer }}</span><button class="chip">Resolve</button></form>{% else %}<p class="empty">No unresolved mistakes.</p>{% endfor %}</section>
+</div>
+<section class="mt-4 grid md:grid-cols-2 xl:grid-cols-3 gap-4">{% for note in notes %}<article class="card p-4"><h2 class="font-bold text-xl">{{ note.title }}</h2><p class="text-slate-300 whitespace-pre-line">{{ note.body }}</p><form method="post" action="{{ url_for('main.delete_note', note_id=note.id) }}"><button class="chip mt-3">Delete</button></form></article>{% endfor %}</section>
+{% endblock %}

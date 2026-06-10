@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Register | NihongoPath{% endblock %}
+{% block content %}
+<section class="max-w-md">
+  <h1 class="page-title">Create Account</h1>
+  <form method="post" class="card p-6 space-y-4">
+    <label class="field-label">Username<input class="input" name="username" required></label>
+    <label class="field-label">Email<input class="input" type="email" name="email" required></label>
+    <label class="field-label">Password<input class="input" type="password" name="password" minlength="6" required></label>
+    <button class="btn-primary w-full">Start Studying</button>
+  </form>
+</section>
+{% endblock %}

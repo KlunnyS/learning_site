@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Choose A Goal</h1>
+<form method="post" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{% for goal in ['JLPT N5','Travel','Anime/listening','Reading manga','School','General learning'] %}<button class="card p-5 text-left hover-card" name="study_goal" value="{{ goal }}">{{ goal }}</button>{% endfor %}</form>
+{% endblock %}

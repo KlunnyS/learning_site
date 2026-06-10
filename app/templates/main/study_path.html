@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Study Path</h1>
+<div class="space-y-5">
+{% for world, items in grouped.items() %}
+  <section class="card p-5">
+    <h2 class="section-title">{{ world }}</h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+      {% for item in items %}
+        {% set p = progress_map.get(item.id) %}
+        {% set state = 'mastered' if p and p.mastery_level >= 5 else 'completed' if p and p.mastery_level >= 3 else 'in progress' if p else 'available' %}
+        <a class="node {{ state|replace(' ','-') }}" href="{{ url_for('main.lesson', slug=item.slug) }}"><span>{{ loop.index }}</span><b>{{ item.title }}</b><small>{{ state }}</small></a>
+      {% else %}<p class="empty">No lessons in this world yet.</p>{% endfor %}
+    </div>
+  </section>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Reviews</h1>
+{% if due %}
+  {% set item = due[0].learning_item %}
+  <form method="post" class="card p-6 max-w-xl space-y-4">
+    <input type="hidden" name="item_id" value="{{ item.id }}"><input type="hidden" name="prompt" value="{{ item.japanese or item.title }}">
+    <div class="badge">{{ item.item_type }}</div><div class="jp-display">{{ item.japanese or item.title }}</div>
+    <input class="input" name="answer" placeholder="Answer" autofocus><button class="btn-primary">Submit Review</button>
+  </form>
+  <p class="mt-4 text-slate-400">{{ due|length }} due items in queue.</p>
+{% else %}<p class="empty">No reviews due. Add lessons to review from Learn.</p>{% endif %}
+{% endblock %}

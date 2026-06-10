@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">{{ 'Edit' if item.id else 'New' }} Item</h1>
+<form method="post" class="card p-5 grid md:grid-cols-2 gap-4">
+{% for field in ['item_type','slug','title','japanese','reading','meaning','pattern','example_sentence','jlpt_level','source_name','source_url','tags'] %}
+  <label class="field-label">{{ field|replace('_',' ')|title }}<input class="input" name="{{ field }}" value="{{ item[field] or '' }}"></label>
+{% endfor %}
+<label class="field-label">Difficulty<input class="input" type="number" name="difficulty" value="{{ item.difficulty or 1 }}"></label>
+<label class="field-label md:col-span-2">Explanation<textarea class="input min-h-32" name="explanation">{{ item.explanation or '' }}</textarea></label>
+<button class="btn-primary md:col-span-2">Save</button>
+</form>
+{% endblock %}

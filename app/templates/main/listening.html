@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Listening</h1>
+<div class="grid lg:grid-cols-2 gap-4">{% for clip in clips %}<article class="card p-5"><h2 class="section-title">{{ clip.learning_item.title }}</h2><audio controls class="w-full mt-3" src="{{ clip.audio_url }}"></audio><details class="mt-3"><summary>Transcript</summary><p class="jp-line">{{ clip.transcript_japanese }}</p></details><details><summary>Translation</summary><p>{{ clip.translation }}</p></details></article>{% else %}<p class="empty">No listening clips yet.</p>{% endfor %}</div>
+{% endblock %}

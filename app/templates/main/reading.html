@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Reading</h1>
+<div class="grid lg:grid-cols-2 gap-4">{% for passage in passages %}<article class="card p-5"><h2 class="section-title">{{ passage.learning_item.title }}</h2><p class="jp-line mt-3">{{ passage.japanese_text }}</p><details class="mt-3"><summary>Furigana</summary><p>{{ passage.furigana_text }}</p></details><details><summary>Translation</summary><p>{{ passage.english_translation }}</p></details><a class="btn-secondary mt-4 inline-flex" href="{{ url_for('main.lesson', slug=passage.learning_item.slug) }}">Track Progress</a></article>{% else %}<p class="empty">No reading passages yet.</p>{% endfor %}</div>
+{% endblock %}

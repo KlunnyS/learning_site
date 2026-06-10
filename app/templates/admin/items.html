@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex justify-between items-end mb-5"><h1 class="page-title">Admin Items</h1><a class="btn-primary" href="{{ url_for('admin.new_item') }}">New Item</a></div>
+<form class="card p-4 mb-4 flex gap-3"><input class="input" name="q" value="{{ search }}" placeholder="Search"><input class="input" name="type" value="{{ item_type }}" placeholder="Type"><button class="btn-secondary">Filter</button></form>
+<div class="card overflow-hidden"><table class="w-full text-sm"><tr class="text-left text-slate-400"><th class="p-3">Title</th><th>Type</th><th>Slug</th><th></th></tr>{% for item in items %}<tr class="border-t border-white/10"><td class="p-3">{{ item.title }}</td><td>{{ item.item_type }}</td><td>{{ item.slug }}</td><td class="text-right p-3"><a class="chip" href="{{ url_for('admin.edit_item', item_id=item.id) }}">Edit</a><form method="post" action="{{ url_for('admin.delete_item', item_id=item.id) }}" class="inline"><button class="chip">Delete</button></form></td></tr>{% endfor %}</table></div>
+{% endblock %}

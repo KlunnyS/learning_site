@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="card p-6 max-w-4xl">
+  <div class="badge">{{ item.item_type|replace('_',' ') }}</div>
+  <h1 class="page-title mt-2">{{ item.title }}</h1>
+  {% if item.japanese %}<div class="jp-display">{{ item.japanese }}</div>{% endif %}
+  <dl class="grid sm:grid-cols-2 gap-4 mt-5">
+    <div><dt class="text-slate-500">Reading</dt><dd>{{ item.reading or '—' }}</dd></div>
+    <div><dt class="text-slate-500">Meaning</dt><dd>{{ item.meaning or '—' }}</dd></div>
+  </dl>
+  <p class="mt-5 text-slate-300">{{ item.explanation or 'Study this item and add it to your review queue.' }}</p>
+  {% if item.example_sentence %}<p class="mt-4 border-l-4 border-[#35D0FF] pl-4">{{ item.example_sentence }}</p>{% endif %}
+  {% if item.tags %}<p class="mt-4 text-sm text-slate-400">Tags: {{ item.tags }}</p>{% endif %}
+  {% if item.source_url %}<a class="text-[#35D0FF]" href="{{ item.source_url }}">{{ item.source_name or 'Source' }}</a>{% endif %}
+  <form method="post" class="mt-6 flex flex-wrap gap-3">
+    <button class="btn-secondary" name="action" value="seen">Mark as seen</button>
+    <button class="btn-secondary" name="action" value="review">Add to review</button>
+    <button class="btn-primary" name="action" value="known">Mark as known</button>
+  </form>
+  <p class="mt-4 text-slate-400">Current mastery: {{ progress.status if progress else 'unknown' }} / {{ progress.mastery_level if progress else 0 }}</p>
+</article>
+{% endblock %}

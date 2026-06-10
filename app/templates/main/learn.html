@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Learn</h1>
+<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+  {% for item in items %}
+    {% set p = progress_map.get(item.id) %}
+    <a class="card p-4 hover-card" href="{{ url_for('main.lesson', slug=item.slug) }}"><div class="badge">{{ item.item_type|replace('_',' ') }}</div><h2 class="text-xl font-bold mt-2">{{ item.title }}</h2><p class="text-slate-400">{{ item.meaning or item.explanation or 'Open lesson' }}</p><span class="status">{{ p.status if p else 'unknown' }}</span></a>
+  {% else %}<p class="empty">No content yet. Run the seed script.</p>{% endfor %}
+</div>
+{% endblock %}

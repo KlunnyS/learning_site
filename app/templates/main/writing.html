@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Writing Practice</h1>
+<div class="grid lg:grid-cols-2 gap-4"><section class="card p-5"><form method="post" class="space-y-3"><select class="input" name="prompt_id">{% for prompt in prompts %}<option value="{{ prompt.id }}">{{ prompt.title }}</option>{% endfor %}</select><textarea class="input min-h-32" name="user_text" placeholder="日本語で書いてください"></textarea><button class="btn-primary">Submit</button></form></section><section class="card p-5"><h2 class="section-title">History</h2>{% for attempt in attempts %}<p class="mt-3 text-slate-300">{{ attempt.user_text }} <span class="text-slate-500">{{ attempt.feedback }}</span></p>{% else %}<p class="empty">No attempts yet.</p>{% endfor %}</section></div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">Progress</h1>
+<div class="grid md:grid-cols-4 gap-4 mb-4"><div class="stat"><b>{{ current_user.xp }}</b><span>Total XP</span></div><div class="stat"><b>{{ current_user.level }}</b><span>Level</span></div><div class="stat"><b>{{ total_correct }}</b><span>Correct</span></div><div class="stat"><b>{{ accuracy }}%</b><span>Accuracy</span></div></div>
+<div class="grid lg:grid-cols-2 gap-4">
+  <section class="card p-5"><h2 class="section-title">Skill Radar</h2><canvas id="skillChart" data-labels='{{ counts.keys()|list|tojson }}' data-values='{{ counts.values()|list|tojson }}'></canvas></section>
+  <section class="card p-5"><h2 class="section-title">Accuracy</h2><canvas id="accuracyChart" data-correct="{{ total_correct }}" data-wrong="{{ total_wrong }}"></canvas></section>
+</div>
+<section class="card p-5 mt-4"><h2 class="section-title">Weak Areas</h2>{% if mistakes %}<ul class="mt-3 space-y-2">{% for mistake in mistakes %}<li class="row"><span>{{ mistake.learning_item.title if mistake.learning_item else 'Mistake' }}</span><span>{{ mistake.correct_answer }}</span></li>{% endfor %}</ul>{% else %}<p class="empty">No weak areas yet.</p>{% endif %}<p class="mt-4 text-[#FFD166]">N5 readiness placeholder: {{ counts.get('grammar', 0) + counts.get('kana', 0) }} beginner items complete.</p></section>
+{% endblock %}

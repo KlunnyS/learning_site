@@ -1,0 +1,20 @@
+{% extends "main/lesson.html" %}
+{% block content %}
+<article class="card p-6 max-w-4xl">
+  <div class="badge">grammar</div><h1 class="page-title mt-2">{{ item.title }}</h1>
+  <p class="text-slate-300">{{ item.explanation }}</p>
+  <div class="grid md:grid-cols-2 gap-4 mt-5">
+    <div class="panel"><h2 class="section-title">Pattern</h2><p class="jp-line">{{ item.pattern or 'Pattern coming soon' }}</p></div>
+    <div class="panel"><h2 class="section-title">Example</h2><p>{{ item.example_sentence or 'Original example coming soon.' }}</p></div>
+    <div class="panel"><h2 class="section-title">Common Mistake</h2><p>Do not translate word-for-word. Check the particle role in the sentence.</p></div>
+    <div class="panel"><h2 class="section-title">Mini Practice</h2><p>Write one sentence using this pattern, then add it to your notebook.</p></div>
+  </div>
+  {% if item.source_url %}<a class="text-[#35D0FF] inline-block mt-4" href="{{ item.source_url }}">{{ item.source_name }}</a>{% endif %}
+  <form method="post" class="mt-6 flex flex-wrap gap-3">
+    <button class="btn-secondary" name="action" value="seen">Mark as seen</button>
+    <button class="btn-secondary" name="action" value="review">Add to review</button>
+    <button class="btn-primary" name="action" value="known">Mark as known</button>
+  </form>
+  <p class="mt-4 text-slate-400">Mastery: {{ progress.status if progress else 'unknown' }}</p>
+</article>
+{% endblock %}

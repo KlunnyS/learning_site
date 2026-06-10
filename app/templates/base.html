@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NihongoPath{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="min-h-screen bg-[#0B1020] text-slate-100">
+  <div class="min-h-screen lg:flex">
+    <aside class="lg:w-72 border-b lg:border-b-0 lg:border-r border-white/10 bg-[#10162A]/90 backdrop-blur">
+      <div class="p-5 flex items-center justify-between lg:block">
+        <a href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('main.index') }}" class="text-2xl font-black tracking-wide">
+          <span class="text-[#FF5C8A]">日本語</span>Path
+        </a>
+        {% if current_user.is_authenticated %}
+          <span class="lg:hidden xp-pill">Lv {{ current_user.level }}</span>
+        {% endif %}
+      </div>
+      <nav class="px-3 pb-4 grid grid-cols-2 gap-2 lg:block">
+        {% set nav = [
+          ('Dashboard','main.dashboard'), ('Study Path','main.study_path'), ('Kana','main.kana'), ('Kanji','main.kanji'),
+          ('Vocabulary','main.vocabulary'), ('Grammar','main.grammar'), ('Reading','main.reading'), ('Listening','main.listening'),
+          ('Writing','main.writing'), ('Reviews','main.reviews'), ('Progress','main.progress'), ('Notebook','main.notebook')
+        ] %}
+        {% for label, endpoint in nav %}
+          <a class="nav-link" href="{{ url_for(endpoint) }}">{{ label }}</a>
+        {% endfor %}
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <a class="nav-link" href="{{ url_for('admin.items') }}">Admin</a>
+        {% endif %}
+      </nav>
+      <div class="px-5 pb-5">
+        {% if current_user.is_authenticated %}
+          <div class="card p-4">
+            <div class="text-sm text-slate-400">Signed in as</div>
+            <div class="font-semibold">{{ current_user.username }}</div>
+            <div class="mt-3 flex gap-2"><span class="xp-pill">{{ current_user.xp }} XP</span><span class="level-pill">Lv {{ current_user.level }}</span></div>
+            <a class="btn-secondary mt-4 w-full text-center" href="{{ url_for('auth.logout') }}">Logout</a>
+          </div>
+        {% else %}
+          <div class="flex gap-2">
+            <a class="btn-primary flex-1 text-center" href="{{ url_for('auth.login') }}">Login</a>
+            <a class="btn-secondary flex-1 text-center" href="{{ url_for('auth.register') }}">Register</a>
+          </div>
+        {% endif %}
+      </div>
+    </aside>
+    <main class="flex-1 relative overflow-hidden">
+      <div class="kana-bg">学 習 道 文 法 読 聞 書</div>
+      <div class="relative p-4 sm:p-6 lg:p-8 max-w-7xl">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-2 mb-5">
+              {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

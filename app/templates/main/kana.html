@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3 mb-5"><h1 class="page-title">Kana: {{ script|title }}</h1><a class="btn-primary" href="{{ url_for('main.practice', kind='kana') }}">Recognition Practice</a></div>
+<div class="flex gap-2 mb-4 flex-wrap">{% for s in ['all','unknown','learning','known','mastered'] %}<a class="chip" href="?status={{ s }}">{{ s }}</a>{% endfor %}<a class="chip" href="{{ url_for('main.kana', script='hiragana') }}">hiragana</a><a class="chip" href="{{ url_for('main.kana', script='katakana') }}">katakana</a></div>
+<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3">
+{% for item in items %}{% set p = progress_map.get(item.id) %}<a class="card p-4 text-center hover-card" href="{{ url_for('main.lesson', slug=item.slug) }}"><div class="text-5xl font-bold">{{ item.japanese }}</div><div class="text-[#35D0FF]">{{ item.reading }}</div><div class="text-xs text-slate-400">{{ p.status if p else 'unknown' }}</div></a>{% endfor %}
+</div>
+{% endblock %}
