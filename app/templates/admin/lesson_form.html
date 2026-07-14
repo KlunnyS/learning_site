@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">{{ 'Edit' if lesson.id else 'New' }} Lesson</h1>
+<form method="post" class="card p-5 grid md:grid-cols-2 gap-4 mt-5">
+  <label class="field-label">Slug<input class="input" name="slug" value="{{ lesson.slug or '' }}" required></label>
+  <label class="field-label">Title<input class="input" name="title" value="{{ lesson.title or '' }}" required></label>
+  <label class="field-label">Level<input class="input" name="level" value="{{ lesson.level or 'N5' }}"></label>
+  <label class="field-label">Skill Focus<input class="input" name="skill_focus" value="{{ lesson.skill_focus or '' }}" required></label>
+  <label class="field-label">Sequence<input class="input" type="number" name="sequence" value="{{ lesson.sequence or 0 }}"></label>
+  <label class="field-label">XP Reward<input class="input" type="number" name="xp_reward" value="{{ lesson.xp_reward or 20 }}"></label>
+  <label class="field-label md:col-span-2">Description<textarea class="input min-h-24" name="description">{{ lesson.description or '' }}</textarea></label>
+  <label class="field-label md:col-span-2">Item Slugs In Order<textarea class="input min-h-48" name="item_slugs" placeholder="particle-wa&#10;vocab-water">{{ item_slugs }}</textarea></label>
+  <button class="btn-primary md:col-span-2">Save</button>
+</form>
+{% endblock %}

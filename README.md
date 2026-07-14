@@ -9,13 +9,11 @@ Screenshots can be added after the first UI pass.
 ## Setup
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
 cp .env.example .env
-python seed.py
 python run.py
 ```
+
+`python run.py` creates `.venv` if needed, installs `requirements.txt`, initializes the database tables, loads starter content when the database is empty, and starts the Flask development server.
 
 Open `http://127.0.0.1:5000`.
 
@@ -35,7 +33,7 @@ python seed.py
 ## Tests
 
 ```bash
-pytest
+.venv/bin/python -m pytest
 ```
 
 Tests use a temporary SQLite database.

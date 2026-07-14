@@ -23,7 +23,7 @@
         {% set nav = [
           ('Dashboard','main.dashboard'), ('Study Path','main.study_path'), ('Kana','main.kana'), ('Kanji','main.kanji'),
           ('Vocabulary','main.vocabulary'), ('Grammar','main.grammar'), ('Reading','main.reading'), ('Listening','main.listening'),
-          ('Writing','main.writing'), ('Reviews','main.reviews'), ('Progress','main.progress'), ('Notebook','main.notebook')
+          ('Writing','main.writing'), ('Reviews','main.reviews'), ('Schedule','main.review_schedule'), ('Progress','main.progress'), ('Mastery','main.mastery'), ('Notebook','main.notebook')
         ] %}
         {% for label, endpoint in nav %}
           <a class="nav-link" href="{{ url_for(endpoint) }}">{{ label }}</a>

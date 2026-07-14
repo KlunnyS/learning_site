@@ -9,6 +9,21 @@
     <div class="panel"><h2 class="section-title">Common Mistake</h2><p>Do not translate word-for-word. Check the particle role in the sentence.</p></div>
     <div class="panel"><h2 class="section-title">Mini Practice</h2><p>Write one sentence using this pattern, then add it to your notebook.</p></div>
   </div>
+  {% if examples %}
+    <section class="mt-6">
+      <h2 class="section-title">More Examples</h2>
+      <div class="mt-3 grid gap-3">
+        {% for example in examples %}
+          <div class="panel">
+            <p class="jp-line">{{ example.japanese }}</p>
+            {% if example.reading %}<p class="text-slate-400">{{ example.reading }}</p>{% endif %}
+            <p class="mt-2">{{ example.english }}</p>
+            {% if example.note %}<p class="mt-2 text-sm text-slate-400">{{ example.note }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
   {% if item.source_url %}<a class="text-[#35D0FF] inline-block mt-4" href="{{ item.source_url }}">{{ item.source_name }}</a>{% endif %}
   <form method="post" class="mt-6 flex flex-wrap gap-3">
     <button class="btn-secondary" name="action" value="seen">Mark as seen</button>

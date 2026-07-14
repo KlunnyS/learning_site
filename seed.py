@@ -1,8 +1,6 @@
 from app import create_app
 from app.extensions import db
-from app.models import LearningItem, ListeningClip, ReadingPassage
-
-app = create_app()
+from app.models import ExampleSentence, LearningItem, Lesson, LessonItem, ListeningClip, ReadingPassage
 
 HIRAGANA = [
     ("あ", "a"), ("い", "i"), ("う", "u"), ("え", "e"), ("お", "o"),
@@ -72,6 +70,68 @@ CONJUGATIONS = [
     ("来る -> past negative", "来る", "来なかった"),
 ]
 
+LESSONS = [
+    {
+        "slug": "hiragana-foundations",
+        "title": "Hiragana Foundations",
+        "description": "Learn the first five hiragana and start reading simple sounds.",
+        "level": "Absolute beginner",
+        "skill_focus": "kana",
+        "sequence": 1,
+        "items": ["hiragana-a", "hiragana-i", "hiragana-u", "hiragana-e", "hiragana-o"],
+    },
+    {
+        "slug": "basic-identity",
+        "title": "Basic Identity Sentences",
+        "description": "Build your first complete sentence with です and essential people words.",
+        "level": "N5",
+        "skill_focus": "grammar",
+        "sequence": 2,
+        "items": ["state-of-being", "vocab-student", "vocab-Japan", "kanji-人", "kanji-学"],
+    },
+    {
+        "slug": "topic-and-object-particles",
+        "title": "Topic and Object Particles",
+        "description": "Use は and を to say what a sentence is about and what an action affects.",
+        "level": "N5",
+        "skill_focus": "grammar",
+        "sequence": 3,
+        "items": ["particle-wa", "particle-wo", "vocab-water", "vocab-to-drink", "kanji-水"],
+    },
+    {
+        "slug": "polite-daily-actions",
+        "title": "Polite Daily Actions",
+        "description": "Practice polite verb forms with common study and reading actions.",
+        "level": "N5",
+        "skill_focus": "conjugation",
+        "sequence": 4,
+        "items": ["polite-form", "ru-verbs", "u-verbs", "vocab-to-study", "conjugation-する-します"],
+    },
+    {
+        "slug": "first-reading-listening",
+        "title": "First Reading and Listening",
+        "description": "Reinforce beginner grammar through a short passage and listening prompt.",
+        "level": "N5",
+        "skill_focus": "reading",
+        "sequence": 5,
+        "items": ["reading-introductions", "listening-greeting", "writing-write-i-am-a-student."],
+    },
+]
+
+EXAMPLES = [
+    ("state-of-being", "私は学生です。", "わたしは がくせいです。", "I am a student.", "Basic polite identity sentence."),
+    ("particle-wa", "今日は暑いです。", "きょうは あついです。", "It is hot today.", "は marks the topic being discussed."),
+    ("particle-wo", "水を飲みます。", "みずを のみます。", "I drink water.", "を marks the direct object."),
+    ("polite-form", "日本語を勉強します。", "にほんごを べんきょうします。", "I study Japanese.", "ます makes the action polite."),
+    ("vocab-water", "水をください。", "みずを ください。", "Water, please.", "Common request using the vocabulary word."),
+    ("vocab-student", "学生がいます。", "がくせいが います。", "There is a student.", "Pairs the noun with が."),
+    ("vocab-to-drink", "お茶を飲みます。", "おちゃを のみます。", "I drink tea.", "Shows 飲む in polite form."),
+    ("kanji-水", "水曜日に会います。", "すいようびに あいます。", "I will meet on Wednesday.", "水 appears in 水曜日."),
+    ("kanji-学", "学校で勉強します。", "がっこうで べんきょうします。", "I study at school.", "学 appears in school and study words."),
+    ("reading-introductions", "私は学生です。日本語を勉強します。", "わたしは がくせいです。にほんごを べんきょうします。", "I am a student. I study Japanese.", "Short reading using beginner grammar."),
+    ("listening-greeting", "こんにちは。私は学生です。", "こんにちは。わたしは がくせいです。", "Hello. I am a student.", "Simple listening transcript."),
+]
+
 
 def upsert(slug, **values):
     item = LearningItem.query.filter_by(slug=slug).first()
@@ -81,6 +141,37 @@ def upsert(slug, **values):
     for key, value in values.items():
         setattr(item, key, value)
     return item
+
+
+def upsert_lesson(slug, item_slugs, **values):
+    lesson = Lesson.query.filter_by(slug=slug).first()
+    if not lesson:
+        lesson = Lesson(slug=slug)
+        db.session.add(lesson)
+    for key, value in values.items():
+        setattr(lesson, key, value)
+    db.session.flush()
+    LessonItem.query.filter_by(lesson_id=lesson.id).delete()
+    for position, item_slug in enumerate(item_slugs, start=1):
+        item = LearningItem.query.filter_by(slug=item_slug).first()
+        if item:
+            db.session.add(LessonItem(lesson=lesson, learning_item=item, position=position))
+    return lesson
+
+
+def upsert_example(item_slug, japanese, reading, english, note):
+    item = LearningItem.query.filter_by(slug=item_slug).first()
+    if not item:
+        return None
+    example = ExampleSentence.query.filter_by(learning_item_id=item.id, japanese=japanese).first()
+    if not example:
+        example = ExampleSentence(learning_item=item, japanese=japanese)
+        db.session.add(example)
+    example.reading = reading
+    example.english = english
+    example.note = note
+    example.difficulty = item.difficulty or 1
+    return example
 
 
 def seed():
@@ -166,10 +257,24 @@ def seed():
     listening_item = upsert("listening-greeting", item_type="listening", title="Greeting Clip", japanese="こんにちは。私は学生です。", meaning="Hello. I am a student.", tags="listening,n5")
     if not ListeningClip.query.filter_by(learning_item_id=listening_item.id).first():
         db.session.add(ListeningClip(learning_item=listening_item, audio_url="/static/audio/placeholder.mp3", transcript_japanese=listening_item.japanese, transcript_reading="こんにちは。わたしは がくせいです。", translation=listening_item.meaning))
+    db.session.flush()
+    for lesson in LESSONS:
+        upsert_lesson(
+            lesson["slug"],
+            lesson["items"],
+            title=lesson["title"],
+            description=lesson["description"],
+            level=lesson["level"],
+            skill_focus=lesson["skill_focus"],
+            sequence=lesson["sequence"],
+        )
+    for item_slug, japanese, reading, english, note in EXAMPLES:
+        upsert_example(item_slug, japanese, reading, english, note)
     db.session.commit()
 
 
 if __name__ == "__main__":
+    app = create_app()
     with app.app_context():
         seed()
         print("Seed data loaded.")

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<article class="max-w-5xl">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <div class="badge">{{ lesson.level }} / {{ lesson.skill_focus|replace('_',' ')|title }}</div>
+      <h1 class="page-title mt-2">{{ lesson.title }}</h1>
+      <p class="mt-3 text-slate-300 max-w-3xl">{{ lesson.description }}</p>
+      {% if locked and previous_lesson %}
+        <p class="mt-3 text-[#FFD166]">Locked until you pass {{ previous_lesson.title }}.</p>
+      {% endif %}
+    </div>
+    <div class="stat min-w-44">
+      <b>{{ progress.accuracy }}%</b>
+      <span>Practice accuracy</span>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-[1fr_18rem] gap-5 mt-6">
+    <section class="card p-5">
+      <h2 class="section-title">Lesson Items</h2>
+      <div class="mt-4 space-y-3">
+        {% for link in links %}
+          {% set item = link.learning_item %}
+          {% set p = item_progress.get(item.id) %}
+          <a class="row" href="{{ url_for('main.lesson', slug=item.slug) }}">
+            <span>
+              <span class="badge">{{ item.item_type|replace('_',' ') }}</span>
+              <strong class="block mt-1">{{ item.title }}</strong>
+              <small class="text-slate-400">{{ item.japanese or item.pattern or item.example_sentence }}</small>
+            </span>
+            <span class="status">{{ p.status if p else 'new' }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2 class="section-title">Progress</h2>
+      <dl class="mt-4 space-y-3 text-sm">
+        <div><dt class="text-slate-400">Status</dt><dd class="font-semibold">{{ progress.status|replace('_',' ') }}</dd></div>
+        <div><dt class="text-slate-400">Items seen</dt><dd class="font-semibold">{{ progress.items_seen }} / {{ links|length }}</dd></div>
+        <div><dt class="text-slate-400">Exercises</dt><dd class="font-semibold">{{ progress.exercises_correct }} / {{ progress.exercises_attempted }}</dd></div>
+      </dl>
+      <div class="mt-5 grid gap-3">
+        {% if locked %}
+          <a class="btn-primary text-center" href="{{ url_for('main.study_path') }}">Return to Path</a>
+        {% else %}
+          <a class="btn-primary text-center" href="{{ url_for('main.lesson_practice', slug=lesson.slug) }}">Practice Lesson</a>
+          <a class="btn-secondary text-center" href="{{ url_for('main.lesson_quiz', slug=lesson.slug) }}">Take Quiz</a>
+        {% endif %}
+        <form method="post">
+          <button class="btn-secondary w-full" name="action" value="complete" {% if locked %}disabled{% endif %}>Complete Lesson</button>
+        </form>
+      </div>
+      {% if quiz_attempts %}
+        <div class="mt-6">
+          <h3 class="section-title">Quiz Results</h3>
+          <div class="mt-3 space-y-2">
+            {% for attempt in quiz_attempts %}
+              <div class="row text-sm">
+                <span>{{ attempt.score_percent }}%</span>
+                <span class="status">{{ 'passed' if attempt.passed else 'review' }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+  </div>
+  {% if examples %}
+    <section class="card p-5 mt-5">
+      <h2 class="section-title">Lesson Examples</h2>
+      <div class="mt-4 grid md:grid-cols-2 gap-3">
+        {% for example in examples %}
+          <div class="panel">
+            <p class="jp-line">{{ example.japanese }}</p>
+            {% if example.reading %}<p class="text-slate-400">{{ example.reading }}</p>{% endif %}
+            <p class="mt-2">{{ example.english }}</p>
+            {% if example.note %}<p class="mt-2 text-sm text-slate-400">{{ example.note }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</article>
+{% endblock %}

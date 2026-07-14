@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+  <div>
+    <h1 class="page-title">Mastery Inventory</h1>
+    <p class="mt-2 text-slate-400">Learned and mastered items from your review history.</p>
+  </div>
+  <a class="btn-secondary" href="{{ url_for('main.progress') }}">Progress</a>
+</div>
+<div class="grid md:grid-cols-2 gap-4 mb-5">
+  <div class="stat"><b>{{ totals.learned }}</b><span>Learned items</span></div>
+  <div class="stat"><b>{{ totals.mastered }}</b><span>Mastered items</span></div>
+</div>
+<p class="mb-5 text-slate-400">{{ totals.learned }} learned / {{ totals.mastered }} mastered</p>
+{% if grouped %}
+  <div class="grid xl:grid-cols-2 gap-4">
+    {% for item_type, buckets in grouped.items() %}
+      <section class="card p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 class="section-title">{{ item_type|replace('_',' ')|title }}</h2>
+          <span class="status">{{ buckets.learned|length }} learned / {{ buckets.mastered|length }} mastered</span>
+        </div>
+        <div class="mt-4 space-y-3">
+          {% for progress in buckets.learned %}
+            {% set item = progress.learning_item %}
+            <a class="row" href="{{ url_for('main.lesson', slug=item.slug) }}">
+              <span>
+                <strong>{{ item.title }}</strong>
+                <small class="block text-slate-400">{{ item.japanese or item.pattern or item.reading or item.meaning }}</small>
+              </span>
+              <span class="status">{{ 'mastered' if progress in buckets.mastered else 'learned' }} · {{ progress.accuracy }}%</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="empty">No learned items yet. Complete lessons and reviews to build this inventory.</p>
+{% endif %}
+{% endblock %}

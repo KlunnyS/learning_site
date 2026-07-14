@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from app.extensions import db
 from app.models import MistakeLog, ReviewLog, UserProgress, utcnow
+from app.services.progress_service import record_activity
 
 STAGE_INTERVALS = {
     0: timedelta(minutes=10),
@@ -64,8 +65,9 @@ def apply_review(user, item, review_type, prompt, user_answer, correct_answer, i
         progress.srs_stage = min(7, progress.srs_stage + 1)
         progress.mastery_level = min(5, max(progress.mastery_level, min(5, progress.srs_stage)))
         progress.status = "mastered" if progress.srs_stage >= 7 else "reviewing"
-        user.add_xp(10)
+        record_activity(user, xp=10, reviews=1, correct_reviews=1)
     else:
+        record_activity(user, reviews=1, wrong_reviews=1)
         progress.wrong_count += 1
         progress.srs_stage = max(0, progress.srs_stage - 1)
         progress.mastery_level = max(0, progress.mastery_level - 1)

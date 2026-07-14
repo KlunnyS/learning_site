@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+  <div>
+    <div class="badge">{{ lesson.level }} Quiz</div>
+    <h1 class="page-title mt-2">{{ lesson.title }}</h1>
+  </div>
+  <a class="btn-secondary" href="{{ url_for('main.lesson_unit', slug=lesson.slug) }}">Back to Lesson</a>
+</div>
+{% if exercises %}
+<form method="post" class="grid gap-4 max-w-3xl">
+  {% for exercise in exercises %}
+    {% set item = exercise.item %}
+    <section class="card p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span class="badge">{{ item.item_type|replace('_',' ') }}</span>
+        <span class="status">{{ exercise.type }}</span>
+      </div>
+      <input type="hidden" name="prompt_{{ item.id }}" value="{{ exercise.prompt }}">
+      <div class="jp-line mt-4">{{ exercise.prompt }}</div>
+      <p class="mt-2 text-slate-400">{{ exercise.instruction }}</p>
+      <input class="input mt-4" name="answer_{{ item.id }}" autocomplete="off">
+      {% if exercise.choices %}
+        <div class="mt-3 flex flex-wrap gap-2">
+          {% for choice in exercise.choices %}
+            <button class="chip" type="button" data-fill="answer_{{ item.id }}" data-value="{{ choice }}">{{ choice }}</button>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+  <button class="btn-primary">Submit Quiz</button>
+</form>
+{% else %}
+  <p class="empty">No quiz items are available for this lesson yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="page-title">{{ 'Edit' if example.id else 'New' }} Example</h1>
+<form method="post" class="card p-5 grid md:grid-cols-2 gap-4 mt-5">
+  <label class="field-label md:col-span-2">Learning Item
+    <select class="input" name="learning_item_id" required>
+      <option value="">Select an item</option>
+      {% for item in items %}
+        <option value="{{ item.id }}" {% if example.learning_item_id == item.id %}selected{% endif %}>{{ item.item_type }} / {{ item.title }} / {{ item.slug }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="field-label md:col-span-2">Japanese<textarea class="input min-h-24" name="japanese" required>{{ example.japanese or '' }}</textarea></label>
+  <label class="field-label md:col-span-2">Reading<textarea class="input min-h-24" name="reading">{{ example.reading or '' }}</textarea></label>
+  <label class="field-label md:col-span-2">English<textarea class="input min-h-24" name="english" required>{{ example.english or '' }}</textarea></label>
+  <label class="field-label md:col-span-2">Note<textarea class="input min-h-24" name="note">{{ example.note or '' }}</textarea></label>
+  <label class="field-label">Difficulty<input class="input" type="number" min="1" name="difficulty" value="{{ example.difficulty or 1 }}"></label>
+  <label class="field-label">Source Name<input class="input" name="source_name" value="{{ example.source_name or '' }}"></label>
+  <label class="field-label md:col-span-2">Source URL<input class="input" name="source_url" value="{{ example.source_url or '' }}"></label>
+  <button class="btn-primary md:col-span-2">Save</button>
+</form>
+{% endblock %}

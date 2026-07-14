@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-wrap justify-between items-end gap-3 mb-5">
+  <h1 class="page-title">Admin Lessons</h1>
+  <div class="flex gap-2">
+    <a class="btn-secondary" href="{{ url_for('admin.items') }}">Items</a>
+    <a class="btn-secondary" href="{{ url_for('admin.examples') }}">Examples</a>
+    <a class="btn-primary" href="{{ url_for('admin.new_lesson') }}">New Lesson</a>
+  </div>
+</div>
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <tr class="text-left text-slate-400"><th class="p-3">Sequence</th><th>Title</th><th>Focus</th><th>Items</th><th></th></tr>
+    {% for lesson in lessons %}
+      <tr class="border-t border-white/10">
+        <td class="p-3">{{ lesson.sequence }}</td>
+        <td>{{ lesson.title }}</td>
+        <td>{{ lesson.skill_focus }}</td>
+        <td>{{ lesson.items|length }}</td>
+        <td class="text-right p-3">
+          <a class="chip" href="{{ url_for('admin.edit_lesson', lesson_id=lesson.id) }}">Edit</a>
+          <form method="post" action="{{ url_for('admin.delete_lesson', lesson_id=lesson.id) }}" class="inline"><button class="chip">Delete</button></form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td class="p-3 text-slate-400" colspan="5">No lessons found.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

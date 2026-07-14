@@ -1,4 +1,5 @@
 from app.models import LearningItem, MistakeLog, UserProgress, utcnow
+from app.services.learning_path_service import next_path_step
 
 
 def recommend_next(user):
@@ -27,6 +28,10 @@ def recommend_next(user):
     mistake = MistakeLog.query.filter_by(user_id=user.id, resolved=False).order_by(MistakeLog.created_at.desc()).first()
     if mistake:
         return {"title": "Notebook", "reason": "You have unresolved mistakes.", "url": "/notebook"}
+
+    path_step = next_path_step(user)
+    if path_step:
+        return path_step
 
     seen_ids = [p.learning_item_id for p in UserProgress.query.filter_by(user_id=user.id).all()]
     unseen = LearningItem.query.filter(~LearningItem.id.in_(seen_ids)).order_by(LearningItem.id).first()

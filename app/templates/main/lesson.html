@@ -10,6 +10,21 @@
   </dl>
   <p class="mt-5 text-slate-300">{{ item.explanation or 'Study this item and add it to your review queue.' }}</p>
   {% if item.example_sentence %}<p class="mt-4 border-l-4 border-[#35D0FF] pl-4">{{ item.example_sentence }}</p>{% endif %}
+  {% if examples %}
+  <section class="mt-6">
+    <h2 class="section-title">Examples</h2>
+    <div class="mt-3 grid gap-3">
+      {% for example in examples %}
+        <div class="panel">
+          <p class="jp-line">{{ example.japanese }}</p>
+          {% if example.reading %}<p class="text-slate-400">{{ example.reading }}</p>{% endif %}
+          <p class="mt-2">{{ example.english }}</p>
+          {% if example.note %}<p class="mt-2 text-sm text-slate-400">{{ example.note }}</p>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
   {% if item.tags %}<p class="mt-4 text-sm text-slate-400">Tags: {{ item.tags }}</p>{% endif %}
   {% if item.source_url %}<a class="text-[#35D0FF]" href="{{ item.source_url }}">{{ item.source_name or 'Source' }}</a>{% endif %}
   <form method="post" class="mt-6 flex flex-wrap gap-3">

@@ -6,3 +6,9 @@ const acc = document.getElementById("accuracyChart");
 if (acc) {
   new Chart(acc, {type: "doughnut", data: {labels: ["Correct", "Wrong"], datasets: [{data: [Number(acc.dataset.correct), Number(acc.dataset.wrong)], backgroundColor: ["#35D0FF", "#FF5C8A"]}]}, options: {plugins: {legend: {labels: {color: "#e2e8f0"}}}}});
 }
+document.querySelectorAll("[data-fill]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const input = document.querySelector(`[name="${button.dataset.fill}"]`);
+    if (input) input.value = button.dataset.value || button.textContent.trim();
+  });
+});

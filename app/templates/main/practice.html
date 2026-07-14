@@ -1,14 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="page-title">{{ kind|replace('_',' ')|title }} Practice</h1>
-{% if item %}
+{% if exercise %}
 <form method="post" class="card p-6 max-w-xl space-y-4">
+  {% set item = exercise.item %}
   <input type="hidden" name="item_id" value="{{ item.id }}">
-  <input type="hidden" name="prompt" value="{{ item.japanese or item.title }}">
-  <div class="jp-display">{{ item.japanese or item.title }}</div>
-  <p class="text-slate-400">Type the answer.</p>
+  <input type="hidden" name="prompt" value="{{ exercise.prompt }}">
+  <div class="badge">{{ exercise.type }}</div>
+  <div class="jp-display">{{ exercise.prompt }}</div>
+  {% if item.reading and item.item_type not in ['kana', 'conjugation'] %}<p class="text-slate-400">{{ item.reading }}</p>{% endif %}
+  <p class="text-slate-400">{{ exercise.instruction }}</p>
   <input class="input" name="answer" autocomplete="off" autofocus>
-  {% if choices %}<div class="flex flex-wrap gap-2">{% for choice in choices %}<button class="chip" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>{% endfor %}</div>{% endif %}
+  {% if exercise.choices %}<div class="flex flex-wrap gap-2">{% for choice in exercise.choices %}<button class="chip" type="submit" name="answer" value="{{ choice }}">{{ choice }}</button>{% endfor %}</div>{% endif %}
   <button class="btn-primary">Submit</button>
 </form>
 {% else %}<p class="empty">No practice items available.</p>{% endif %}

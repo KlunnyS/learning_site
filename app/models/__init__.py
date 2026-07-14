@@ -29,6 +29,9 @@ class User(UserMixin, db.Model):
     reviews = db.relationship("ReviewLog", back_populates="user", cascade="all, delete-orphan")
     mistakes = db.relationship("MistakeLog", back_populates="user", cascade="all, delete-orphan")
     notes = db.relationship("UserNote", back_populates="user", cascade="all, delete-orphan")
+    lesson_progress = db.relationship("LessonProgress", back_populates="user", cascade="all, delete-orphan")
+    daily_activity = db.relationship("DailyActivity", back_populates="user", cascade="all, delete-orphan")
+    quiz_attempts = db.relationship("LessonQuizAttempt", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -62,6 +65,88 @@ class LearningItem(db.Model):
     progress = db.relationship("UserProgress", back_populates="learning_item", cascade="all, delete-orphan")
     reviews = db.relationship("ReviewLog", back_populates="learning_item", cascade="all, delete-orphan")
     mistakes = db.relationship("MistakeLog", back_populates="learning_item", cascade="all, delete-orphan")
+    lesson_links = db.relationship("LessonItem", back_populates="learning_item", cascade="all, delete-orphan")
+    examples = db.relationship("ExampleSentence", back_populates="learning_item", cascade="all, delete-orphan")
+
+
+class ExampleSentence(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    learning_item_id = db.Column(db.Integer, db.ForeignKey("learning_item.id"), nullable=False, index=True)
+    japanese = db.Column(db.Text, nullable=False)
+    reading = db.Column(db.Text)
+    english = db.Column(db.Text, nullable=False)
+    note = db.Column(db.Text)
+    difficulty = db.Column(db.Integer, default=1, nullable=False)
+    source_name = db.Column(db.String(255))
+    source_url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+    learning_item = db.relationship("LearningItem", back_populates="examples")
+
+
+class Lesson(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(160), unique=True, nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    level = db.Column(db.String(40), default="N5", nullable=False)
+    skill_focus = db.Column(db.String(80), nullable=False, index=True)
+    sequence = db.Column(db.Integer, default=0, nullable=False, index=True)
+    xp_reward = db.Column(db.Integer, default=20, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+    items = db.relationship("LessonItem", back_populates="lesson", cascade="all, delete-orphan", order_by="LessonItem.position")
+    progress = db.relationship("LessonProgress", back_populates="lesson", cascade="all, delete-orphan")
+    quiz_attempts = db.relationship("LessonQuizAttempt", back_populates="lesson", cascade="all, delete-orphan")
+
+
+class LessonItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False, index=True)
+    learning_item_id = db.Column(db.Integer, db.ForeignKey("learning_item.id"), nullable=False, index=True)
+    position = db.Column(db.Integer, default=0, nullable=False)
+    role = db.Column(db.String(40), default="core", nullable=False)
+
+    lesson = db.relationship("Lesson", back_populates="items")
+    learning_item = db.relationship("LearningItem", back_populates="lesson_links")
+    __table_args__ = (db.UniqueConstraint("lesson_id", "learning_item_id", name="uq_lesson_learning_item"),)
+
+
+class LessonProgress(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False, index=True)
+    status = db.Column(db.String(30), default="not_started", nullable=False)
+    items_seen = db.Column(db.Integer, default=0, nullable=False)
+    exercises_correct = db.Column(db.Integer, default=0, nullable=False)
+    exercises_attempted = db.Column(db.Integer, default=0, nullable=False)
+    started_at = db.Column(db.DateTime(timezone=True))
+    completed_at = db.Column(db.DateTime(timezone=True))
+    last_activity = db.Column(db.DateTime(timezone=True))
+
+    user = db.relationship("User", back_populates="lesson_progress")
+    lesson = db.relationship("Lesson", back_populates="progress")
+    __table_args__ = (db.UniqueConstraint("user_id", "lesson_id", name="uq_user_lesson_progress"),)
+
+    @property
+    def accuracy(self):
+        if not self.exercises_attempted:
+            return 0.0
+        return round((self.exercises_correct / self.exercises_attempted) * 100, 1)
+
+
+class LessonQuizAttempt(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lesson.id"), nullable=False, index=True)
+    correct_count = db.Column(db.Integer, default=0, nullable=False)
+    question_count = db.Column(db.Integer, default=0, nullable=False)
+    score_percent = db.Column(db.Float, default=0.0, nullable=False)
+    passed = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+
+    user = db.relationship("User", back_populates="quiz_attempts")
+    lesson = db.relationship("Lesson", back_populates="quiz_attempts")
 
 
 class UserProgress(db.Model):
@@ -102,6 +187,21 @@ class ReviewLog(db.Model):
 
     user = db.relationship("User", back_populates="reviews")
     learning_item = db.relationship("LearningItem", back_populates="reviews")
+
+
+class DailyActivity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    activity_date = db.Column(db.Date, nullable=False, index=True)
+    xp_earned = db.Column(db.Integer, default=0, nullable=False)
+    reviews_completed = db.Column(db.Integer, default=0, nullable=False)
+    lessons_completed = db.Column(db.Integer, default=0, nullable=False)
+    correct_reviews = db.Column(db.Integer, default=0, nullable=False)
+    wrong_reviews = db.Column(db.Integer, default=0, nullable=False)
+    last_activity_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+    user = db.relationship("User", back_populates="daily_activity")
+    __table_args__ = (db.UniqueConstraint("user_id", "activity_date", name="uq_user_daily_activity"),)
 
 
 class MistakeLog(db.Model):

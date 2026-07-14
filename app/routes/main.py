@@ -1,13 +1,17 @@
 from collections import Counter, defaultdict
-from datetime import date
-import random
+from datetime import date, timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.models import (
+    DailyActivity,
+    ExampleSentence,
     LearningItem,
+    Lesson,
+    LessonProgress,
+    LessonQuizAttempt,
     ListeningClip,
     MistakeLog,
     ReadingPassage,
@@ -18,6 +22,10 @@ from app.models import (
     utcnow,
 )
 from app.services.recommendation_service import recommend_next
+from app.services.exercise_service import answer_for, build_exercise, check_answer, select_adaptive_item
+from app.services.learning_path_service import build_path_state, lesson_is_passed
+from app.services.level_service import level_readiness
+from app.services.progress_service import record_activity
 from app.services.srs_service import apply_review, get_or_create_progress, mark_known, mark_seen
 
 main_bp = Blueprint("main", __name__)
@@ -35,14 +43,31 @@ def progress_for(items):
     return {p.learning_item_id: p for p in progress}
 
 
-def item_answer(item):
-    if item.item_type == "kana":
-        return item.reading or item.meaning or item.title
-    if item.item_type in {"vocabulary", "kanji"}:
-        return item.meaning or item.reading or item.japanese
-    if item.item_type == "conjugation":
-        return item.meaning
-    return item.meaning or item.title
+def lesson_progress_for(lessons):
+    if not current_user.is_authenticated:
+        return {}
+    progress = LessonProgress.query.filter(
+        LessonProgress.user_id == current_user.id,
+        LessonProgress.lesson_id.in_([lesson.id for lesson in lessons] or [0]),
+    ).all()
+    return {p.lesson_id: p for p in progress}
+
+
+def get_or_create_lesson_progress(lesson):
+    progress = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson.id).first()
+    if not progress:
+        progress = LessonProgress(
+            user=current_user,
+            lesson=lesson,
+            status="in_progress",
+            items_seen=0,
+            exercises_correct=0,
+            exercises_attempted=0,
+            started_at=utcnow(),
+        )
+        db.session.add(progress)
+    progress.last_activity = utcnow()
+    return progress
 
 
 @main_bp.route("/")
@@ -56,8 +81,7 @@ def index():
 @login_required
 def dashboard():
     today = date.today()
-    today_reviews = ReviewLog.query.filter_by(user_id=current_user.id).all()
-    today_reviews = [r for r in today_reviews if r.created_at.date() == today]
+    activity = DailyActivity.query.filter_by(user_id=current_user.id, activity_date=today).first()
     due = UserProgress.query.filter(
         UserProgress.user_id == current_user.id,
         UserProgress.next_review.isnot(None),
@@ -76,12 +100,15 @@ def dashboard():
     mistakes = MistakeLog.query.filter_by(user_id=current_user.id, resolved=False).order_by(MistakeLog.created_at.desc()).limit(5).all()
     return render_template(
         "main/dashboard.html",
-        xp_today=sum(10 for r in today_reviews if r.is_correct),
-        reviews_completed=len(today_reviews),
+        xp_today=activity.xp_earned if activity else 0,
+        reviews_completed=activity.reviews_completed if activity else 0,
+        lessons_completed=activity.lessons_completed if activity else 0,
+        daily_goal_percent=round(((activity.xp_earned if activity else 0) / current_user.daily_goal_xp) * 100) if current_user.daily_goal_xp else 0,
         due_by_type=due_by_type,
         skill_cards=skill_cards,
         mistakes=mistakes,
         recommendation=recommend_next(current_user),
+        readiness=level_readiness(current_user),
     )
 
 
@@ -95,23 +122,132 @@ def learn():
 @main_bp.route("/study-path")
 @login_required
 def study_path():
-    worlds = {
-        "Kana Island": ["kana"],
-        "Basic Sentences": ["grammar"],
-        "Particles": ["grammar"],
-        "Adjectives": ["grammar"],
-        "Verbs": ["grammar", "conjugation"],
-        "Kanji Forest": ["kanji"],
-        "Reading Village": ["reading"],
-        "Listening Harbor": ["listening"],
-        "Writing Dojo": ["writing_prompt"],
-    }
-    all_items = LearningItem.query.order_by(LearningItem.id).all()
-    progress_map = progress_for(all_items)
-    grouped = {}
-    for world, types in worlds.items():
-        grouped[world] = [item for item in all_items if item.item_type in types][:8]
-    return render_template("main/study_path.html", grouped=grouped, progress_map=progress_map)
+    return render_template("main/study_path.html", path_entries=build_path_state(current_user))
+
+
+@main_bp.route("/lessons/<slug>", methods=["GET", "POST"])
+@login_required
+def lesson_unit(slug):
+    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
+    previous_lesson = Lesson.query.filter(Lesson.sequence < lesson.sequence).order_by(Lesson.sequence.desc(), Lesson.id.desc()).first()
+    locked = bool(previous_lesson and not lesson_is_passed(current_user, previous_lesson))
+    links = lesson.items
+    items = [link.learning_item for link in links]
+    lesson_examples = (
+        ExampleSentence.query.filter(ExampleSentence.learning_item_id.in_([item.id for item in items] or [0]))
+        .order_by(ExampleSentence.difficulty, ExampleSentence.id)
+        .limit(6)
+        .all()
+    )
+    lesson_progress = get_or_create_lesson_progress(lesson)
+    if request.method == "POST":
+        if locked:
+            flash("Complete the previous lesson quiz before starting this lesson.", "warning")
+            return redirect(url_for("main.study_path"))
+        action = request.form.get("action")
+        if action == "start":
+            lesson_progress.status = "in_progress"
+            lesson_progress.started_at = lesson_progress.started_at or utcnow()
+            flash("Lesson started.", "success")
+        elif action == "complete":
+            for item in items:
+                mark_seen(current_user, item)
+            lesson_progress.status = "completed"
+            lesson_progress.items_seen = len(items)
+            lesson_progress.completed_at = utcnow()
+            record_activity(current_user, xp=lesson.xp_reward, lessons=1)
+            flash(f"Lesson completed. +{lesson.xp_reward} XP", "success")
+        db.session.commit()
+        return redirect(url_for("main.lesson_unit", slug=lesson.slug))
+    return render_template(
+        "main/lesson_unit.html",
+        lesson=lesson,
+        links=links,
+        examples=lesson_examples,
+        progress=lesson_progress,
+        item_progress=progress_for(items),
+        locked=locked,
+        previous_lesson=previous_lesson,
+        quiz_attempts=LessonQuizAttempt.query.filter_by(user_id=current_user.id, lesson_id=lesson.id)
+        .order_by(LessonQuizAttempt.created_at.desc())
+        .limit(3)
+        .all(),
+    )
+
+
+@main_bp.route("/lessons/<slug>/practice", methods=["GET", "POST"])
+@login_required
+def lesson_practice(slug):
+    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
+    previous_lesson = Lesson.query.filter(Lesson.sequence < lesson.sequence).order_by(Lesson.sequence.desc(), Lesson.id.desc()).first()
+    if previous_lesson and not lesson_is_passed(current_user, previous_lesson):
+        flash("Complete the previous lesson quiz before practicing this lesson.", "warning")
+        return redirect(url_for("main.study_path"))
+    items = [link.learning_item for link in lesson.items]
+    if request.method == "POST":
+        item = db.session.get(LearningItem, int(request.form["item_id"]))
+        answer = request.form.get("answer", "").strip()
+        correct = answer_for(item)
+        is_correct = check_answer(item, answer)
+        apply_review(current_user, item, f"lesson:{lesson.slug}", request.form.get("prompt"), answer, correct, is_correct)
+        progress = get_or_create_lesson_progress(lesson)
+        progress.exercises_attempted += 1
+        if is_correct:
+            progress.exercises_correct += 1
+        progress.status = "completed" if progress.items_seen >= len(items) and progress.accuracy >= 80 else "in_progress"
+        db.session.commit()
+        flash("Correct." if is_correct else f"Not quite. Correct: {correct}", "success" if is_correct else "error")
+        return redirect(url_for("main.lesson_practice", slug=lesson.slug))
+
+    exercise = build_exercise(select_adaptive_item(current_user, items), items)
+    return render_template("main/practice.html", kind=f"{lesson.title} Lesson", exercise=exercise)
+
+
+@main_bp.route("/lessons/<slug>/quiz", methods=["GET", "POST"])
+@login_required
+def lesson_quiz(slug):
+    lesson = Lesson.query.filter_by(slug=slug).first_or_404()
+    previous_lesson = Lesson.query.filter(Lesson.sequence < lesson.sequence).order_by(Lesson.sequence.desc(), Lesson.id.desc()).first()
+    if previous_lesson and not lesson_is_passed(current_user, previous_lesson):
+        flash("Complete the previous lesson quiz before taking this quiz.", "warning")
+        return redirect(url_for("main.study_path"))
+    items = [link.learning_item for link in lesson.items]
+    quiz_items = items[:5]
+    if request.method == "POST":
+        correct_count = 0
+        answered_items = []
+        for item in quiz_items:
+            answer = request.form.get(f"answer_{item.id}", "").strip()
+            correct = answer_for(item)
+            is_correct = check_answer(item, answer)
+            if is_correct:
+                correct_count += 1
+            apply_review(current_user, item, f"quiz:{lesson.slug}", request.form.get(f"prompt_{item.id}"), answer, correct, is_correct)
+            answered_items.append(item)
+        question_count = len(answered_items)
+        score = round((correct_count / question_count) * 100, 1) if question_count else 0.0
+        passed = score >= 80
+        attempt = LessonQuizAttempt(
+            user=current_user,
+            lesson=lesson,
+            correct_count=correct_count,
+            question_count=question_count,
+            score_percent=score,
+            passed=passed,
+        )
+        db.session.add(attempt)
+        progress = get_or_create_lesson_progress(lesson)
+        progress.exercises_attempted += question_count
+        progress.exercises_correct += correct_count
+        if passed:
+            progress.status = "completed"
+            progress.items_seen = max(progress.items_seen, len(items))
+            progress.completed_at = progress.completed_at or utcnow()
+        db.session.commit()
+        flash(f"Quiz score: {score}%.", "success" if passed else "warning")
+        return redirect(url_for("main.lesson_unit", slug=lesson.slug))
+    exercises = [build_exercise(item, items) for item in quiz_items]
+    return render_template("main/lesson_quiz.html", lesson=lesson, exercises=exercises)
 
 
 @main_bp.route("/learn/<slug>", methods=["GET", "POST"])
@@ -133,8 +269,9 @@ def lesson(slug):
         db.session.commit()
         return redirect(url_for("main.lesson", slug=item.slug))
     progress = UserProgress.query.filter_by(user_id=current_user.id, learning_item_id=item.id).first()
+    examples = ExampleSentence.query.filter_by(learning_item_id=item.id).order_by(ExampleSentence.difficulty, ExampleSentence.id).all()
     template = "main/grammar_detail.html" if item.item_type == "grammar" else "main/lesson.html"
-    return render_template(template, item=item, progress=progress)
+    return render_template(template, item=item, progress=progress, examples=examples)
 
 
 @main_bp.route("/kana")
@@ -187,28 +324,22 @@ def kanji():
 @main_bp.route("/practice/<kind>", methods=["GET", "POST"])
 @login_required
 def practice(kind):
-    allowed = {"kana", "vocabulary", "kanji", "conjugation"}
+    allowed = {"kana", "vocabulary", "kanji", "grammar", "conjugation"}
     if kind not in allowed:
         flash("Practice mode not found.", "error")
         return redirect(url_for("main.dashboard"))
     if request.method == "POST":
         item = db.session.get(LearningItem, int(request.form["item_id"]))
         answer = request.form.get("answer", "").strip()
-        correct = item_answer(item)
-        is_correct = answer.lower() == (correct or "").lower()
+        correct = answer_for(item)
+        is_correct = check_answer(item, answer)
         apply_review(current_user, item, kind, request.form.get("prompt"), answer, correct, is_correct)
         db.session.commit()
         flash("Correct." if is_correct else f"Not quite. Correct: {correct}", "success" if is_correct else "error")
         return redirect(url_for("main.practice", kind=kind))
     items = LearningItem.query.filter_by(item_type=kind).all()
-    item = random.choice(items) if items else None
-    choices = []
-    if item and kind in {"kana", "vocabulary", "kanji"}:
-        choices = [item_answer(x) for x in random.sample(items, min(4, len(items)))]
-        if item_answer(item) not in choices:
-            choices[0] = item_answer(item)
-        random.shuffle(choices)
-    return render_template("main/practice.html", kind=kind, item=item, answer=item_answer(item) if item else "", choices=choices)
+    exercise = build_exercise(select_adaptive_item(current_user, items), items)
+    return render_template("main/practice.html", kind=kind, exercise=exercise)
 
 
 @main_bp.route("/reviews", methods=["GET", "POST"])
@@ -217,8 +348,8 @@ def reviews():
     if request.method == "POST":
         item = db.session.get(LearningItem, int(request.form["item_id"]))
         answer = request.form.get("answer", "").strip()
-        correct = item_answer(item)
-        apply_review(current_user, item, "mixed", request.form.get("prompt"), answer, correct, answer.lower() == (correct or "").lower())
+        correct = answer_for(item)
+        apply_review(current_user, item, "mixed", request.form.get("prompt"), answer, correct, check_answer(item, answer))
         db.session.commit()
         return redirect(url_for("main.reviews"))
     due = (
@@ -226,13 +357,87 @@ def reviews():
         .order_by(UserProgress.next_review)
         .all()
     )
-    return render_template("main/reviews.html", due=due)
+    exercise = build_exercise(due[0].learning_item, [progress.learning_item for progress in due]) if due else None
+    return render_template("main/reviews.html", due=due, exercise=exercise)
+
+
+def weak_items_for_current_user():
+    weak_progress_items = [
+        progress.learning_item
+        for progress in UserProgress.query.filter_by(user_id=current_user.id, status="weak").all()
+        if progress.learning_item
+    ]
+    mistake_items = [
+        mistake.learning_item
+        for mistake in MistakeLog.query.filter_by(user_id=current_user.id, resolved=False).all()
+        if mistake.learning_item
+    ]
+    items_by_id = {item.id: item for item in weak_progress_items + mistake_items}
+    return list(items_by_id.values())
+
+
+def review_schedule_groups():
+    now = utcnow()
+    today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    tomorrow_end = today_end + timedelta(days=1)
+    week_end = today_end + timedelta(days=7)
+    rows = (
+        UserProgress.query.filter(UserProgress.user_id == current_user.id, UserProgress.next_review.isnot(None))
+        .order_by(UserProgress.next_review)
+        .all()
+    )
+    groups = {"Due now": [], "Later today": [], "Tomorrow": [], "This week": [], "Later": []}
+    for progress in rows:
+        next_review = progress.next_review
+        compare_now = now.replace(tzinfo=None) if next_review.tzinfo is None else now
+        compare_today = today_end.replace(tzinfo=None) if next_review.tzinfo is None else today_end
+        compare_tomorrow = tomorrow_end.replace(tzinfo=None) if next_review.tzinfo is None else tomorrow_end
+        compare_week = week_end.replace(tzinfo=None) if next_review.tzinfo is None else week_end
+        if next_review <= compare_now:
+            groups["Due now"].append(progress)
+        elif next_review <= compare_today:
+            groups["Later today"].append(progress)
+        elif next_review <= compare_tomorrow:
+            groups["Tomorrow"].append(progress)
+        elif next_review <= compare_week:
+            groups["This week"].append(progress)
+        else:
+            groups["Later"].append(progress)
+    return groups
+
+
+@main_bp.route("/reviews/schedule")
+@login_required
+def review_schedule():
+    groups = review_schedule_groups()
+    return render_template("main/review_schedule.html", groups=groups, total=sum(len(items) for items in groups.values()))
+
+
+@main_bp.route("/weak-practice", methods=["GET", "POST"])
+@login_required
+def weak_practice():
+    if request.method == "POST":
+        item = db.session.get(LearningItem, int(request.form["item_id"]))
+        answer = request.form.get("answer", "").strip()
+        correct = answer_for(item)
+        is_correct = check_answer(item, answer)
+        apply_review(current_user, item, "weak", request.form.get("prompt"), answer, correct, is_correct)
+        if is_correct:
+            MistakeLog.query.filter_by(user_id=current_user.id, learning_item_id=item.id, resolved=False).update({"resolved": True})
+        db.session.commit()
+        flash("Weak area reinforced." if is_correct else f"Still weak. Correct: {correct}", "success" if is_correct else "error")
+        return redirect(url_for("main.weak_practice"))
+    items = weak_items_for_current_user()
+    exercise = build_exercise(select_adaptive_item(current_user, items), items)
+    return render_template("main/practice.html", kind="Weak Areas", exercise=exercise)
 
 
 @main_bp.route("/progress")
 @login_required
 def progress():
     reviews = ReviewLog.query.filter_by(user_id=current_user.id).all()
+    activity = DailyActivity.query.filter_by(user_id=current_user.id).order_by(DailyActivity.activity_date.desc()).limit(14).all()
+    quiz_attempts = LessonQuizAttempt.query.filter_by(user_id=current_user.id).order_by(LessonQuizAttempt.created_at.desc()).limit(8).all()
     total_correct = sum(1 for r in reviews if r.is_correct)
     total_wrong = len(reviews) - total_correct
     counts = {}
@@ -244,7 +449,40 @@ def progress():
         )
     mistakes = MistakeLog.query.filter_by(user_id=current_user.id, resolved=False).order_by(MistakeLog.created_at.desc()).limit(10).all()
     accuracy = round((total_correct / len(reviews)) * 100, 1) if reviews else 0
-    return render_template("main/progress.html", reviews=reviews, total_correct=total_correct, total_wrong=total_wrong, counts=counts, mistakes=mistakes, accuracy=accuracy)
+    return render_template(
+        "main/progress.html",
+        reviews=reviews,
+        total_correct=total_correct,
+        total_wrong=total_wrong,
+        counts=counts,
+        mistakes=mistakes,
+        accuracy=accuracy,
+        activity=activity,
+        quiz_attempts=quiz_attempts,
+        readiness=level_readiness(current_user),
+    )
+
+
+@main_bp.route("/mastery")
+@login_required
+def mastery():
+    progress_rows = (
+        UserProgress.query.filter(UserProgress.user_id == current_user.id, UserProgress.mastery_level >= 3)
+        .join(LearningItem)
+        .order_by(LearningItem.item_type, LearningItem.title)
+        .all()
+    )
+    grouped = defaultdict(lambda: {"learned": [], "mastered": []})
+    for progress in progress_rows:
+        item = progress.learning_item
+        grouped[item.item_type]["learned"].append(progress)
+        if progress.mastery_level >= 5 or progress.status == "mastered":
+            grouped[item.item_type]["mastered"].append(progress)
+    totals = {
+        "learned": len(progress_rows),
+        "mastered": sum(1 for progress in progress_rows if progress.mastery_level >= 5 or progress.status == "mastered"),
+    }
+    return render_template("main/mastery.html", grouped=dict(grouped), totals=totals)
 
 
 @main_bp.route("/notebook", methods=["GET", "POST"])
@@ -293,7 +531,7 @@ def writing():
         ok = bool(text) and any(token and token in text for token in expected)
         feedback = "Good attempt." if ok else f"Try including: {', '.join(expected)}. Model: {item.japanese}"
         db.session.add(WritingAttempt(user_id=current_user.id, prompt_id=item.id, user_text=text, feedback=feedback))
-        current_user.add_xp(5)
+        record_activity(current_user, xp=5)
         if not ok:
             db.session.add(MistakeLog(user=current_user, learning_item=item, mistake_text=text or "(blank)", correct_answer=item.japanese, explanation=feedback))
         db.session.commit()

@@ -1,10 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="page-title">Progress</h1>
+<div class="flex flex-wrap items-end justify-between gap-3 mb-5"><h1 class="page-title">Progress</h1><div class="flex gap-2"><a class="btn-secondary" href="{{ url_for('main.review_schedule') }}">Review Schedule</a><a class="btn-secondary" href="{{ url_for('main.mastery') }}">View Mastery</a></div></div>
 <div class="grid md:grid-cols-4 gap-4 mb-4"><div class="stat"><b>{{ current_user.xp }}</b><span>Total XP</span></div><div class="stat"><b>{{ current_user.level }}</b><span>Level</span></div><div class="stat"><b>{{ total_correct }}</b><span>Correct</span></div><div class="stat"><b>{{ accuracy }}%</b><span>Accuracy</span></div></div>
 <div class="grid lg:grid-cols-2 gap-4">
   <section class="card p-5"><h2 class="section-title">Skill Radar</h2><canvas id="skillChart" data-labels='{{ counts.keys()|list|tojson }}' data-values='{{ counts.values()|list|tojson }}'></canvas></section>
   <section class="card p-5"><h2 class="section-title">Accuracy</h2><canvas id="accuracyChart" data-correct="{{ total_correct }}" data-wrong="{{ total_wrong }}"></canvas></section>
 </div>
-<section class="card p-5 mt-4"><h2 class="section-title">Weak Areas</h2>{% if mistakes %}<ul class="mt-3 space-y-2">{% for mistake in mistakes %}<li class="row"><span>{{ mistake.learning_item.title if mistake.learning_item else 'Mistake' }}</span><span>{{ mistake.correct_answer }}</span></li>{% endfor %}</ul>{% else %}<p class="empty">No weak areas yet.</p>{% endif %}<p class="mt-4 text-[#FFD166]">N5 readiness placeholder: {{ counts.get('grammar', 0) + counts.get('kana', 0) }} beginner items complete.</p></section>
+<section class="card p-5 mt-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2 class="section-title">Level Progression</h2>
+    <span class="level-pill">{{ readiness.label }}</span>
+  </div>
+  <div class="mt-4">
+    <div class="flex justify-between text-sm text-slate-400"><span>N5 readiness</span><span>{{ readiness.readiness }}%</span></div>
+    <div class="meter mt-2"><span style="width: {{ readiness.readiness }}%"></span></div>
+  </div>
+  <div class="grid md:grid-cols-4 gap-3 mt-4">
+    <div class="stat"><b>{{ readiness.content_score }}%</b><span>Content learned</span></div>
+    <div class="stat"><b>{{ readiness.lesson_score }}%</b><span>Lessons complete</span></div>
+    <div class="stat"><b>{{ readiness.quiz_score }}%</b><span>Quizzes passed</span></div>
+    <div class="stat"><b>{{ readiness.weak_count }}</b><span>Weak areas</span></div>
+  </div>
+  <div class="mt-4 grid md:grid-cols-2 gap-3">
+    {% for skill in readiness.skills %}
+      <div class="panel">
+        <div class="flex justify-between text-sm"><span>{{ skill.name }}</span><span>{{ skill.learned }} / {{ skill.total }}</span></div>
+        <div class="meter mt-2"><span style="width: {{ skill.percent }}%"></span></div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+<section class="card p-5 mt-4">
+  <h2 class="section-title">Recent Study Activity</h2>
+  {% if activity %}
+    <div class="mt-3 space-y-2">
+      {% for day in activity %}
+        <div class="row">
+          <span>{{ day.activity_date.strftime('%b %-d') }}</span>
+          <span class="text-slate-400">{{ day.xp_earned }} XP / {{ day.reviews_completed }} reviews / {{ day.lessons_completed }} lessons</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">No tracked study activity yet.</p>
+  {% endif %}
+</section>
+<section class="card p-5 mt-4">
+  <h2 class="section-title">Lesson Quiz Results</h2>
+  {% if quiz_attempts %}
+    <div class="mt-3 space-y-2">
+      {% for attempt in quiz_attempts %}
+        <div class="row">
+          <span>{{ attempt.lesson.title }}</span>
+          <span class="text-slate-400">{{ attempt.correct_count }} / {{ attempt.question_count }} · {{ attempt.score_percent }}% · {{ 'passed' if attempt.passed else 'review' }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">No lesson quizzes submitted yet.</p>
+  {% endif %}
+</section>
+<section class="card p-5 mt-4"><div class="flex items-center justify-between gap-3"><h2 class="section-title">Weak Areas</h2>{% if mistakes %}<a class="chip" href="{{ url_for('main.weak_practice') }}">Practice weak areas</a>{% endif %}</div>{% if mistakes %}<ul class="mt-3 space-y-2">{% for mistake in mistakes %}<li class="row"><span>{{ mistake.learning_item.title if mistake.learning_item else 'Mistake' }}</span><span>{{ mistake.correct_answer }}</span></li>{% endfor %}</ul>{% else %}<p class="empty">No weak areas yet.</p>{% endif %}</section>
 {% endblock %}

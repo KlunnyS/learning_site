@@ -1,18 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="page-title">Study Path</h1>
-<div class="space-y-5">
-{% for world, items in grouped.items() %}
-  <section class="card p-5">
-    <h2 class="section-title">{{ world }}</h2>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-      {% for item in items %}
-        {% set p = progress_map.get(item.id) %}
-        {% set state = 'mastered' if p and p.mastery_level >= 5 else 'completed' if p and p.mastery_level >= 3 else 'in progress' if p else 'available' %}
-        <a class="node {{ state|replace(' ','-') }}" href="{{ url_for('main.lesson', slug=item.slug) }}"><span>{{ loop.index }}</span><b>{{ item.title }}</b><small>{{ state }}</small></a>
-      {% else %}<p class="empty">No lessons in this world yet.</p>{% endfor %}
-    </div>
-  </section>
+<p class="mt-3 text-slate-400 max-w-3xl">Follow the path in order. Passing each lesson quiz unlocks the next lesson, while missed quizzes send you back through targeted review.</p>
+<div class="grid lg:grid-cols-2 gap-4 mt-6">
+{% for entry in path_entries %}
+  {% set lesson = entry.lesson %}
+  {% set p = entry.progress %}
+  {% set quiz = entry.quiz %}
+  {% set state = entry.state %}
+  <a class="node lesson-node {{ state|replace('_','-') }}" href="{{ url_for('main.lesson_unit', slug=lesson.slug) }}">
+    <span>{{ lesson.sequence }}</span>
+    <b>{{ lesson.title }}</b>
+    <small>{{ lesson.level }} / {{ lesson.skill_focus|replace('_',' ')|title }}</small>
+    <small>{{ state|replace('_',' ') }}{% if quiz %} / quiz {{ quiz.score_percent }}%{% elif p and p.exercises_attempted %} / {{ p.accuracy }}% practice{% endif %}</small>
+    <small>{{ entry.reason }}</small>
+  </a>
+{% else %}
+  <p class="empty">No structured lessons are available yet. Run the seed command to load the learning path.</p>
 {% endfor %}
 </div>
 {% endblock %}
