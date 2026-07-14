@@ -342,6 +342,30 @@ def practice(kind):
     return render_template("main/practice.html", kind=kind, exercise=exercise)
 
 
+@main_bp.route("/practice/listening", methods=["GET", "POST"])
+@login_required
+def practice_listening():
+    """Practice listening by presenting a random clip and checking answer."""
+    clips = ListeningClip.query.all()
+    if not clips:
+        flash("No listening clips available.", "info")
+        return redirect(url_for("main.dashboard"))
+    if request.method == "POST":
+        clip_id = int(request.form.get("clip_id", 0))
+        clip = db.session.get(ListeningClip, clip_id)
+        answer = request.form.get("answer", "").strip()
+        # Simple correctness: check if any token from transcript appears in answer
+        correct_text = clip.transcript_japanese or ""
+        is_correct = any(tok for tok in correct_text.split() if tok and tok in answer)
+        apply_review(current_user, clip, "listening", request.form.get("prompt"), answer, correct_text, is_correct)
+        flash("Answer submitted.", "success")
+        return redirect(url_for("main.practice_listening"))
+    # GET: select random clip
+    import random
+    clip = random.choice(clips)
+    return render_template("main/listening_practice.html", clip=clip)
+
+
 @main_bp.route("/reviews", methods=["GET", "POST"])
 @login_required
 def reviews():

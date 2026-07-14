@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Listening Practice{% endblock %}
+{% block content %}
+<h1>Listening Practice</h1>
+{% if clip %}
+  <audio controls>
+    <source src="{{ clip.audio_url }}" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+  <form method="post">
+    <input type="hidden" name="clip_id" value="{{ clip.id }}" />
+    <div class="form-group">
+      <label for="answer">Your transcription:</label>
+      <textarea name="answer" id="answer" rows="3" class="form-control"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% else %}
+  <p>No clip available.</p>
+{% endif %}
+{% endblock %}
